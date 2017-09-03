@@ -1,20 +1,16 @@
 class World {
-  constructor(width, height) {
-    this.boardWidth = width;
-    this.boardHeight = height;
-    this.board = document.getElementById('board');
-    this.score = 0;
-    this.scoreEl = document.getElementById('score');
-  }
-
-  createWorld() {
-    this.board.style.width = '200px';
-    this.board.style.height = '200px';
+  constructor() {
+    this.board = document.getElementById('snake-canvas');
+    this.boardCtx = this.board.getContext('2d');
   }
 
   init() {
-    this.createWorld()
     this.startGame();
+  }
+
+  refreshBoard() {
+    this.boardCtx.fillStyle = "black";
+    this.boardCtx.fillRect(0,0,this.board.width, this.board.height)
   }
 
   updateScore() {
@@ -27,7 +23,7 @@ class World {
   }
 
   isLegalMove(x, y, snake) {
-    var inBounds = (x < this.boardWidth && x >= 0) && (y < this.boardHeight && y >= 0)
+    var inBounds = (x < 400 && x >= 0) && (y < 400 && y >= 0)
     return !snake.hitSelf() && inBounds
   }
 
@@ -36,26 +32,27 @@ class World {
     let snake = new Snake()
     let player = new Player();
     let food = new Food();
+    let ateFood;
     player.listenForMoves()
-
+    food.newFood();
 
     this.gameloop = setInterval(function() {
-      let coordinates = snake.getSnakePosition(player); // {x: X, y: Y}
-      let proposed_x = coordinates['x'];
-      let proposed_y = coordinates['y'];
-      let ateFood = false;
+      this.refreshBoard()
+      food.drawFood(this.boardCtx)
+      ateFood = false;
+      let c = snake.getSnakePosition(player); // {x: X, y: Y}
 
-      if(!this.isLegalMove(proposed_x, proposed_y, snake)) {
+      if(!this.isLegalMove(c['x'], c['y'], snake)) {
         this.gameOver();
       }
 
-      if(food.ateFood(proposed_x, proposed_y)) {
-        this.updateScore();
-        food.drawNewFood();
+      if(food.ateFood(c['x'], c['y'])) {
+        food.newFood(this.boardCtx)
         ateFood = true;
+        player.addScore();
       }
 
-      snake.move(proposed_x, proposed_y, ateFood);
+      snake.move(c['x'], c['y'], ateFood, this.boardCtx);
     }.bind(this), 100);
   }
 
@@ -67,9 +64,13 @@ class World {
 class Player {
   constructor() {
     this.legitMoves = [37, 38, 39, 40];
-    this.listenForMoves();
-    this.lastMove;
-    this.listenForMoves();
+    this.score = 0;
+    this.scoreCard = document.getElementById('score')
+  }
+
+  addScore() {
+    this.score += 5;
+    this.scoreCard.textContent = this.score;
   }
 
   listenForMoves() {
@@ -90,11 +91,7 @@ class Snake {
   } 
 
   createSnake() {
-    let snakeEl = document.createElement('li');
-    document.getElementById('snake').appendChild(snakeEl)
-    snakeEl.style.top = 0;
-    snakeEl.style.left = 0;
-    this.snake = [{el: snakeEl, x: 0, y: 0}]
+    this.snake = [{x: 0, y: 0}]
   }
 
   hitSelf() {
@@ -107,18 +104,16 @@ class Snake {
     }.bind(this))
   }
 
-  move(x, y, appendTail) {
-    if (!appendTail) {
-      var removedElement = this.snake.pop();
-      document.getElementById('snake').removeChild(removedElement.el);
+  move(x, y, ateFood, board) {
+    if (!ateFood) {
+      this.snake.pop();
     }
+    this.snake.unshift({x: x, y: y})
 
-    var newSnakeHead = document.createElement('li');
-    newSnakeHead.style.top = y;
-    newSnakeHead.style.left = x;
-
-    this.snake.unshift({el: newSnakeHead, x: x, y: y})
-    document.getElementById('snake').prepend(this.snake[0].el)
+    board.fillStyle = 'lime';
+    for(var i=0; i<this.snake.length; i++) {
+      board.fillRect(this.snake[i].x, this.snake[i].y, 20, 20)
+    }
   }
 
   getSnakePosition(player) {
@@ -164,23 +159,13 @@ class Snake {
 
 
 class Food {
-  constructor() {
-    this.x = 0;
-    this.y = 0;
-    this.food = document.getElementById('food');
-    this.drawNewFood();
-  }
-
-  drawNewFood(board) {
-    this.x = this.generateRandomCoordinate();
-    this.y = this.generateRandomCoordinate();
-
-    this.food.style.left = this.x;
-    this.food.style.top = this.y;
-  }
-
-  generateRandomCoordinate() {
-    return Math.ceil((Math.random() * 200)/20) * 20 - 20;
+  newFood() {
+    this.x = Math.ceil((Math.random() * 400)/20) * 20 - 20;
+    this.y = Math.ceil((Math.random() * 400)/20) * 20 - 20;
+  } 
+  drawFood(board) {
+    board.fillStyle = "red";
+    board.fillRect(this.x, this.y, 20, 20)
   }
 
   ateFood(x, y) {
@@ -189,5 +174,5 @@ class Food {
 }
 
 
-let world = new World(200, 200);
+let world = new World();
 world.init()
